@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8">
+	<title>Snake</title>
+	<style>
+
+	#container {
+		height: 400px;
+		width: 600px;
+		position: relative;
+		border: 3px solid black;
+	}
+	#player {
+		position: absolute;
+		height: 20px;
+		width: 20px;
+		/*outline: 1px solid block;*/
+		background-color: green;
+		left: 80px;
+		bottom: 180px;
+	}
+
+
+	</style>
+</head>
+<body>
+<div id="container">
+	<div id="player"></div>
+</div>
+
+<script type="text/javascript" src="http://code.jquery.com/jquery-2.2.4.min.js"></script>
+<script>
+var player = $("#player")[0];
+var container = $("#container")[0];
+
+var score = 0;
+newScore();
+
+var gameSpeed = 100;
+var gameOver = false;
+// If the movement direction is changed the code will wait for the snake to move 1square until it will be able to change it's movement direction again
+// This was created to prevent snake from moving straight backwards by changing direction two times rapidly
+var stepped = false;
+// Map size
+var ctnrHeight = 400;
+var ctnrWidth = 600;
+
+var gameStarted = false;
+
+var playerSize = 20;
+var speedX = 0;
+var speedY = 0;
+
+var playerX = 80;
+var playerY = 180;
+// Contains every square object for the tail
+var tail = [];
+newTail(40, 180, "lightgreen");
+newTail(60, 180, "lightgreen");
+var food = newFood();
+
+var tailInProgress = false;
+
+function anim(e)
+{
+	// Movement controls
+	if (stepped)
+	{
+		switch(e.keyCode)
+		{
+			case 39:
+			// Using if statement to prevent movement backwards(it's a snake afterall)
+				if (speedX != -playerSize)
+				{
+					stepped = false;
+					speedX = playerSize;
+					speedY = 0;
+				}
+				break;
+			case 37:
+				if (speedX != playerSize)
+				{
+					stepped = false;
+					speedX = -playerSize;
+					speedY = 0;
+				}
+				break;
+			case 38:
+				if (speedY != -playerSize)
+				{
+					stepped = false;
+					speedX = 0;
+					speedY = playerSize;
+				}
+				break;
+			case 40:
+				if (speedY != playerSize)
+				{
+					stepped = false;
+					speedX = 0;
+					speedY = -playerSize;
+				}
+				break;
+		}
+	}
+}
+
+function newScore()
+{
+	var plrScore = newCanvas("score", 105, 210);
+	plrScore.style.left = 0 + "px";
+	plrScore.style.bottom = ctnrHeight + "px";
+	// higher zindex means that the layer will be more in the front
+	plrScore.style.zIndex = "1";
+	plrScore.style.opacity = 0.7;
+	// Appearently required for next two lines to work
+	var ctx = plrScore.getContext("2d");
+	ctx.font = "25px Arial";
+	ctx.fillText("Score: " + score, 10, 45);
+}
+function updateScore()
+{
+	var ctx = document.getElementById("score").getContext("2d");
+    ctx.clearRect(0, 0, 275, 75);
+	score += 10;
+	ctx.fillText("Score: " + score, 10, 45);
+}
+// Creates new square for the tail
+function newTail(x, y, color = "green")
+{
+	var index = tail.length;
+	tail.push(newCanvas("tail" + index.toString()));
+	tail[index].style.background = color;
+	tail[index].style.left = x + "px";
+	tail[index].style.bottom = y + "px";
+}
+// Creates a piece of food for the snake
+function newFood()
+{
+	// Preventing the food from spawning inside the tail or head
+	while ((playerX == x && playerY == y || tail.some(e => e.style.left == (x + "px") && e.style.bottom == (y + "px"))) || x == undefined)
+	{
+		// Generating random coordinates
+		var x = Math.floor(Math.random() * ((ctnrWidth - playerSize) / playerSize + 1)) * playerSize;
+		var y = Math.floor(Math.random() * ((ctnrHeight - playerSize) / playerSize + 1)) * playerSize;
+	}
+	var food = newCanvas("food");
+	food.style.background = "gray";
+	food.style.left = x + "px";
+	food.style.bottom = y + "px";
+	return document.getElementById("food");
+}
+// Creates new canvas object
+function newCanvas(id, height = playerSize, width = playerSize)
+{
+	var canv = document.createElement("canvas");
+	canv.id = id;
+	// Making sure the new element is inside the container
+	document.getElementById("container").appendChild(canv);
+	canv.style.position = "absolute";
+	canv.style.height = height + "px";
+	canv.style.width = width + "px";
+	return canv;
+}
+// Updates the location of the tail squares and the head
+function movementUpdate()
+{
+	// Collision check for walls
+	wallCollision();
+
+	// Updating movement speed
+	playerX += speedX;
+	playerY += speedY;
+	// Collision check for the tail
+	tailCollision();
+	if (!gameOver)
+	{
+		// Updates tail
+		if (speedX != 0 || speedY != 0)
+		{
+			if (tailInProgress)
+			{
+				tailInProgress = false;
+				tail[tail.length - 1].style.background = "lightgreen";
+			}
+			for (let i = 0; i < tail.length - 1; i++)
+			{
+				tail[i].style.left = tail[i + 1].style.left;
+				tail[i].style.bottom = tail[i + 1].style.bottom;
+			}
+			tail[tail.length - 1].style.left = player.style.left;
+			tail[tail.length - 1].style.bottom = player.style.bottom;
+		}
+		// Updates head position
+		player.style.left = playerX + "px";
+		player.style.bottom = playerY + "px";
+	}
+}
+function wallCollision()
+{
+	if (playerX >= ctnrWidth - playerSize && speedX > 0)
+		playerX = -playerSize;
+	else if (playerX <= 0 && speedX < 0)
+		playerX = ctnrWidth;
+
+	else if (playerY >= ctnrHeight - playerSize && speedY > 0)
+		playerY = -playerSize;
+	else if (playerY <= 0 && speedY < 0)
+		playerY = ctnrHeight;
+}
+
+function tailCollision()
+{
+	for (var i = 0; i < tail.length; i++)
+	{
+		if (tail[i] == tail[tail.length - 1])
+			continue;
+		// Shortens code
+		var tmpT = tail[i].style;
+		if (tmpT.left == playerX + "px" && tmpT.bottom == playerY + "px")
+		{
+			tmpT.background = "red";
+			speedX = 0;
+			speedY = 0;
+			gameOver = true;
+			newCanvas("gameOver", 400, 600);
+			break;
+		}
+	}
+}
+function timeEvent()
+{
+	if (!gameStarted)
+	{
+		gameStarted = true;
+		// Function that runs constantly between specified intervals(gameSpeed)
+		var interval = setInterval(function()
+		{
+			movementUpdate();
+
+			stepped = true;
+
+			if (food.style.left == playerX + "px" && food.style.bottom == playerY + "px")
+			{
+				updateScore();
+				// Removing collected piece of food and generating new one
+				food.remove(food.selectedIndex);
+				food = newFood();
+				newTail(playerX, playerY);
+				// It means that the need square has same color as head, it should be changed
+				tailInProgress = true;
+			}
+			if (gameOver)
+			{
+				clearInterval(interval);
+			}
+		}, gameSpeed);
+	}
+}
+document.onkeydown = anim;
+
+
+</script>
+<script type="text/javascript">
+	$( document ).ready(function() {
+	    timeEvent();
+	});
+</script>
+
+</body>
+</html>
